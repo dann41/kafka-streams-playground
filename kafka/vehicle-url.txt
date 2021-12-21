@@ -1,0 +1,2 @@
+{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "photoUrl": "some-image.jpg", "order": "1"}
+{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "photoUrl": "some-image-2.jpg", "order": "2"}

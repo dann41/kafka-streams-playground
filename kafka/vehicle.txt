@@ -1,0 +1,1 @@
+{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "licensePlate": "1111-XXX", "createdAt": "2021-12-21T00:00:00Z", "odometer": 12345}
