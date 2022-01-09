@@ -29,48 +29,51 @@ class App {
         private const val FULL_VEHICLE_TOPIC = "full_vehicle"
     }
 
+    class SerdesDefinition(objectMapper: ObjectMapper) {
+        val vehicle = JsonSerde(Vehicle::class.java, objectMapper)
+        val price = JsonSerde(VehiclePrice::class.java, objectMapper)
+        val photo = JsonSerde(VehiclePhoto::class.java, objectMapper)
+        val photos = JsonSerde(VehiclePhotos::class.java, objectMapper)
+        val partialVehicle = JsonSerde(PartialVehicle::class.java, objectMapper)
+        val fullVehicle = JsonSerde(FullVehicle::class.java, objectMapper)
+    }
+
     fun execute() {
-        val objectMapper = objectMapper()
-        val vehicleSerde = JsonSerde(Vehicle::class.java, objectMapper)
-        val priceSerde = JsonSerde(VehiclePrice::class.java, objectMapper)
-        val photoSerde = JsonSerde(VehiclePhoto::class.java, objectMapper)
-        val photosSerde = JsonSerde(VehiclePhotos::class.java, objectMapper)
-        val partialVehicleSerde = JsonSerde(PartialVehicle::class.java, objectMapper)
-        val fullVehicleSerde = JsonSerde(FullVehicle::class.java, objectMapper)
+        val serdes = SerdesDefinition(objectMapper())
 
         val streamsBuilder = StreamsBuilder()
 
         val vehiclesTable = streamsBuilder
-            .table(VEHICLES_TOPIC, Materialized.with(Serdes.String(), vehicleSerde))
+            .table(VEHICLES_TOPIC, Materialized.with(Serdes.String(), serdes.vehicle))
 
         val vehiclesWithPriceTable = streamsBuilder
-            .table(PRICES_TOPIC, Materialized.with(Serdes.String(), priceSerde))
+            .table(PRICES_TOPIC, Materialized.with(Serdes.String(), serdes.price))
             .join(
                 vehiclesTable,
                 { price: VehiclePrice, vehicle: Vehicle ->
                     PartialVehicle(vehicle.id, vehicle, price)
                 },
                 Named.`as`("vehicle_with_price_table"),
-                Materialized.with(Serdes.String(), partialVehicleSerde)
+                Materialized.with(Serdes.String(), serdes.partialVehicle)
             )
 
         val vehiclePhotosTable = streamsBuilder
-            .table(PHOTOS_TOPIC, Materialized.with(Serdes.String(), photoSerde))
+            .table(PHOTOS_TOPIC, Materialized.with(Serdes.String(), serdes.photo))
             .filter { _, value ->  value != null }
-            .groupBy({ _, value -> KeyValue.pair(value.vehicle, value) }, Grouped.with(Serdes.String(), photoSerde))
+            .groupBy({ _, value -> KeyValue.pair(value.vehicle, value) }, Grouped.with(Serdes.String(), serdes.photo))
             .aggregate(
                 { VehiclePhotos(emptyList()) },
                 { _, value, photos -> VehiclePhotos(photos.photos + value) },
                 { _, value, photos -> VehiclePhotos(photos.photos - value) },
                 Named.`as`("vehicle_photos_table"),
-                Materialized.with(Serdes.String(), photosSerde)
+                Materialized.with(Serdes.String(), serdes.photos)
             )
 
         val partialVehicleTable = vehiclesWithPriceTable.join(
             vehiclePhotosTable,
             { partialVehicle, photos -> partialVehicle.copy(photos = photos.photos) },
             Named.`as`("vehicle_with_price_and_photos_table"),
-            Materialized.with(Serdes.String(), partialVehicleSerde)
+            Materialized.with(Serdes.String(), serdes.partialVehicle)
         )
 
         partialVehicleTable
@@ -78,7 +81,7 @@ class App {
             .mapValues { _, value -> value.toFullVehicle() }
             .toStream()
             .peek { key, value -> println("Processing full vehicle $key. $value") }
-            .to(FULL_VEHICLE_TOPIC, Produced.with(Serdes.String(), fullVehicleSerde))
+            .to(FULL_VEHICLE_TOPIC, Produced.with(Serdes.String(), serdes.fullVehicle))
 
         val topology = streamsBuilder
             .build()
