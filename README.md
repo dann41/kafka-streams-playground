@@ -7,19 +7,19 @@ Given 3 different topics:
 - vehicle topic: containing vehicle information
 
 ```
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "licensePlate": "1111-XXX", "createdAt": "2021-12-21T00:00:00Z", "odometer": 12345}
+{"id": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "licensePlate": "1111-XXX", "createdAt": "2021-12-21T00:00:00Z", "odometer": 12345}
 ```
 
 - vehicle-price: containing price for a vehicle
 
 ```
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "price": "25400", "createdAt": "2021-12-21T00:00:00Z"}
+{"id": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "price": "25400", "createdAt": "2021-12-21T00:00:00Z"}
 ```
 
 - vehicle-photo: containing the url of the vehicle
 
 ```
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "photoUrl": "some-image.jpg", "order": "1"}
+{"id": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "photoUrl": "some-image.jpg", "order": "1"}
 ```
 
 The goal is to have a Kafka Stream topology that allows generating only valid FullVehicle objects according to the following invariants:

@@ -3,13 +3,135 @@
  */
 package com.dann41.kafkastreams
 
+import com.dann41.kafkastreams.events.*
+import com.dann41.kafkastreams.serdes.JsonSerde
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
+import com.fasterxml.jackson.module.kotlin.KotlinModule
+import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.KeyValue
+import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
+import org.apache.kafka.streams.kstream.*
+import java.util.concurrent.CountDownLatch
+import kotlin.system.exitProcess
+
+
 class App {
-    val greeting: String
-        get() {
-            return "Hello world."
+
+    companion object {
+        private const val VEHICLES_TOPIC = "vehicle"
+        private const val PRICES_TOPIC = "vehicle_price"
+        private const val PHOTOS_TOPIC = "vehicle_photo"
+        private const val FULL_VEHICLE_TOPIC = "full_vehicle"
+    }
+
+    fun execute() {
+        val objectMapper = objectMapper()
+        val vehicleSerde = JsonSerde(Vehicle::class.java, objectMapper)
+        val priceSerde = JsonSerde(VehiclePrice::class.java, objectMapper)
+        val photoSerde = JsonSerde(VehiclePhoto::class.java, objectMapper)
+        val photosSerde = JsonSerde(VehiclePhotos::class.java, objectMapper)
+        val partialVehicleSerde = JsonSerde(PartialVehicle::class.java, objectMapper)
+        val fullVehicleSerde = JsonSerde(FullVehicle::class.java, objectMapper)
+
+        val streamsBuilder = StreamsBuilder()
+
+        val vehiclesTable = streamsBuilder
+            .table(VEHICLES_TOPIC, Materialized.with(Serdes.String(), vehicleSerde))
+
+        val vehiclesWithPriceTable = streamsBuilder
+            .table(PRICES_TOPIC, Materialized.with(Serdes.String(), priceSerde))
+            .join(
+                vehiclesTable,
+                { price: VehiclePrice, vehicle: Vehicle ->
+                    PartialVehicle(vehicle.id, vehicle, price)
+                },
+                Named.`as`("vehicle_with_price_table"),
+                Materialized.with(Serdes.String(), partialVehicleSerde)
+            )
+
+        val vehiclePhotosTable = streamsBuilder
+            .table(PHOTOS_TOPIC, Materialized.with(Serdes.String(), photoSerde))
+            .filter { _, value ->  value != null }
+            .groupBy({ _, value -> KeyValue.pair(value.vehicle, value) }, Grouped.with(Serdes.String(), photoSerde))
+            .aggregate(
+                { VehiclePhotos(emptyList()) },
+                { _, value, photos -> VehiclePhotos(photos.photos + value) },
+                { _, value, photos -> VehiclePhotos(photos.photos - value) },
+                Named.`as`("vehicle_photos_table"),
+                Materialized.with(Serdes.String(), photosSerde)
+            )
+
+        val partialVehicleTable = vehiclesWithPriceTable.join(
+            vehiclePhotosTable,
+            { partialVehicle, photos -> partialVehicle.copy(photos = photos.photos) },
+            Named.`as`("vehicle_with_price_and_photos_table"),
+            Materialized.with(Serdes.String(), partialVehicleSerde)
+        )
+
+        partialVehicleTable
+            .filter { _, value -> value.isFullVehicle() }
+            .mapValues { _, value -> value.toFullVehicle() }
+            .toStream()
+            .peek { key, value -> println("Processing full vehicle $key. $value") }
+            .to(FULL_VEHICLE_TOPIC, Produced.with(Serdes.String(), fullVehicleSerde))
+
+        val topology = streamsBuilder
+            .build()
+        println(topology.describe())
+
+        val streams = KafkaStreams(topology, KafkaProperties.properties)
+
+        streams.setUncaughtExceptionHandler { exception ->
+            println(exception?.message)
+            StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.REPLACE_THREAD
         }
+
+        start(streams)
+    }
+
+    private fun objectMapper(): ObjectMapper {
+        val objectMapper = ObjectMapper()
+        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+        objectMapper.registerModule(JavaTimeModule())
+        objectMapper.registerModule(
+            KotlinModule.Builder()
+                .configure(KotlinFeature.NullToEmptyCollection, true)
+                .configure(KotlinFeature.NullToEmptyMap, true)
+                .configure(KotlinFeature.NullIsSameAsDefault, true)
+                .configure(KotlinFeature.StrictNullChecks, false)
+                .build()
+        )
+        return objectMapper
+    }
+
+    private fun start(streams: KafkaStreams) {
+        val latch = CountDownLatch(1)
+
+        Runtime.getRuntime().addShutdownHook(object : Thread("streams-shutdown-hook") {
+            override fun run() {
+                println("Closing")
+                streams.close()
+                latch.countDown()
+            }
+        })
+
+        try {
+            println("Start")
+            streams.start()
+            println("Started")
+            latch.await()
+        } catch (e: Throwable) {
+            exitProcess(1)
+        }
+        exitProcess(0)
+    }
 }
 
-fun main(args: Array<String>) {
-    println(App().greeting)
+fun main() {
+    App().execute()
 }

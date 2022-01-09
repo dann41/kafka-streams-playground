@@ -1,2 +1,3 @@
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "photoUrl": "some-image.jpg", "order": "1"}
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "photoUrl": "some-image-2.jpg", "order": "2"}
+1251_{"id": "1", "vehicle": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "photoUrl": "", "order": 1}
+1252_{"id": "2", "vehicle": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "photoUrl": "", "order": 2}
+1253_{"id": "3", "vehicle": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "photoUrl": "", "order": 3}

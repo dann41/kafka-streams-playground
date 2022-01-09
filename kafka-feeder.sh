@@ -1,5 +1,5 @@
 #!/bin/bash
 
-kafkacat -b localhost:9092 -t vehicle -P < kafka/vehicle.txt
-kafkacat -b localhost:9092 -t vehicle-price -P < kafka/vehicle-price.txt
-kafkacat -b localhost:9092 -t vehicle-photo -P < kafka/vehicle-url.txt
+kafkacat -b localhost:9092 -t vehicle -P -K_ < kafka/vehicle.txt
+kafkacat -b localhost:9092 -t vehicle_price -P -K_ < kafka/vehicle-price.txt
+kafkacat -b localhost:9092 -t vehicle_photo -P -K_ < kafka/vehicle-url.txt

@@ -1,1 +1,1 @@
-{"id": "28c5965e-cb5a-4d39-bbb4-cb6df0dbc0e9", "price": "25400", "createdAt": "2021-12-21T00:00:00Z"}
+fd19abb0-10c9-4341-8c29-27cc738e2a97_{"id": "fd19abb0-10c9-4341-8c29-27cc738e2a97", "price": 24500, "createdAt": "2021-12-21T00:00:00Z"}
